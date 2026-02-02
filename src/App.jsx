@@ -8,7 +8,6 @@ import { useTranslation } from "react-i18next";
 import "./App.css";
 
 // HTTP client for API requests
-import axios from "axios";
 
 // React core hooks
 import { useState, useEffect } from "react";
@@ -22,6 +21,12 @@ import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 import CloudIcon from "@mui/icons-material/Cloud";
 import Button from "@mui/material/Button";
+import Backdrop from "@mui/material/Backdrop";
+import CircularProgress from "@mui/material/CircularProgress";
+
+// Redux Import
+import { useSelector, useDispatch } from "react-redux";
+import { featchWeather } from "./redux-store/WeatherApiSlice";
 
 // ===============================
 // Moment.js for date & time handling
@@ -52,6 +57,17 @@ const theme = createTheme({
 });
 
 export default function App() {
+  // Redux Code
+  const dispatch = useDispatch();
+
+  // const result = useSelector((state) => {
+  //   return state.result;
+  // });
+
+  const Loding = useSelector((state) => state.weather.Loding);
+
+  const weather = useSelector((state) => state.weather.weather);
+
   // Get translation function and language controller
   const { t, i18n } = useTranslation();
 
@@ -64,13 +80,6 @@ export default function App() {
   // State: Weather data object
   // Stores temperature and weather info
   // ===============================
-  const [data, setData] = useState({
-    number: null, // Current temperature
-    description: "", // Weather description
-    min: null, // Minimum temperature
-    max: null, // Maximum temperature
-    icon: null, // Weather icon URL
-  });
 
   // ===============================
   // State: Current language
@@ -123,44 +132,11 @@ export default function App() {
   // Also updates translation language
   // ===============================
   useEffect(() => {
+    // Fetch weather data
+    dispatch(featchWeather());
     // Sync i18n language with local state
     i18n.changeLanguage(locale);
-
-    // Create AbortController to cancel request if needed
-    const controller = new AbortController();
-
-    // Send request to OpenWeatherMap API
-    axios
-      .get(
-        "https://api.openweathermap.org/data/2.5/weather?lat=30.0444&lon=31.2357&appid=13d12b2ef3ae82b684f7b2461437c8d5&units=metric",
-        {
-          signal: controller.signal,
-        },
-      )
-      .then((res) => {
-        // Store processed weather data in state
-        setData({
-          number: Math.round(res.data.main.temp), // Current temperature
-          description: res.data.weather[0]?.description || "", // Weather description
-          min: Math.floor(res.data.main.temp_min), // Min temperature
-          max: Math.floor(res.data.main.temp_max), // Max temperature
-
-          // Build icon URL dynamically
-          icon: `https://openweathermap.org/img/wn/${
-            res.data.weather[0]?.icon || ""
-          }@2x.png`,
-        });
-      })
-      .catch((err) => {
-        // Ignore canceled requests
-        if (err.name !== "CanceledError") {
-          console.error(err);
-        }
-      });
-
-    // Cancel request on component unmount
-    return () => controller.abort();
-  }, [locale]);
+  }, [locale, i18n, dispatch]);
 
   return (
     <div className="App">
@@ -181,6 +157,18 @@ export default function App() {
               flexDirection: "column",
             }}
           >
+            {/* Start Loding */}
+            <Backdrop
+              sx={{
+                color: "#fff",
+                zIndex: (theme) => theme.zIndex.drawer + 1,
+                backgroundColor: "rgba(0, 0, 0, 0.4)",
+              }}
+              open={Loding}
+            >
+              <CircularProgress size={100} />
+            </Backdrop>
+            {/* End Loding */}
             {/* Start Card */}
             <div
               className="card"
@@ -232,15 +220,18 @@ export default function App() {
                       }}
                     >
                       <Typography variant="h1" sx={{ textAlign: "right" }}>
-                        {t(data.number)}
+                        {t(weather.weatherDegree)}
                       </Typography>
                       {/* Todo: Start Temp Image */}
-                      {data.icon && <img src={data.icon} alt="weather" />}
+                      {weather.iconWeather && (
+                        <img src={weather.iconWeather} alt="weather" />
+                      )}
                       {/* Todo: End Temp Image */}
                     </div>
                     {/* End Temp */}
                     <Typography variant="h6">
-                      {t(data.description.replace(" ", "_"))}
+                      {weather.description &&
+                        t(weather.description.replace(" ", "_"))}
                     </Typography>
                     {/* Start Min & Max */}
                     <div
@@ -252,11 +243,11 @@ export default function App() {
                       }}
                     >
                       <h5>
-                        {t("minor")} : {t(data.min)}
+                        {t("minor")} : {t(weather.minDegree)}
                       </h5>
                       <h5 style={{ margin: "0px 7px" }}>|</h5>
                       <h5>
-                        {t("grand")} : {t(data.max)}
+                        {t("grand")} : {t(weather.maxDegree)}
                       </h5>
                     </div>
                     {/* End Min & Max */}
